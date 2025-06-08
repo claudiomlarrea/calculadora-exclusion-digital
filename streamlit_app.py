@@ -2,24 +2,41 @@ import streamlit as st
 import pandas as pd
 import io
 
-st.title('Calculadora de Exclusión Digital y Movilidad Social')
+# Título institucional
+st.markdown("<h1 style='text-align: center; color: white;'>Universidad Católica de Cuyo</h1>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center; color: white;'>Facultad de Ciencias Económicas y Empresariales</h3>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align: center; color: white;'>Instituto de Desarrollo Sostenible</h4>", unsafe_allow_html=True)
 
-# --- Selector de modo de uso ---
+st.title("Calculadora de Exclusión Digital y Movilidad Social")
+
+# Subtítulo general
+st.subheader("Herramienta para el análisis de la brecha digital y su relación con las oportunidades de desarrollo social.")
+
+# Descripción general
+st.markdown("""
+Esta aplicación permite estimar indicadores clave de exclusión digital y movilidad social a partir de los datos de cada persona o de archivos Excel con múltiples registros.
+
+**Los principales indicadores calculados son:**
+- **Índice Binario de Exclusión Digital**: identifica si una persona está completamente excluida digitalmente.
+- **Índice Ordinal de Exclusión Digital**: clasifica el nivel de acceso digital en tres categorías: sin acceso, acceso parcial y acceso completo.
+- **Porcentaje de Vulnerabilidad Digital**: mide la magnitud de la exclusión digital en una escala de 0 a 100%.
+- **Porcentaje de Vulnerabilidad de Movilidad Social**: estima el riesgo de que la persona tenga dificultades para mejorar sus condiciones de vida en función de su nivel educativo, capacitación TIC y exclusión digital.
+""", unsafe_allow_html=True)
+
+# Selector de modo de uso
 modo = st.radio('Seleccioná el modo de uso:', ['Ingreso individual', 'Carga por lote (Excel)'])
+
+# (Resto del código se mantiene igual...)
+
 
 if modo == 'Ingreso individual':
     st.header('Ingreso de Datos por Persona')
-
     sexo = st.selectbox('Sexo:', ['Varón', 'Mujer'])
     edad = st.number_input('Edad:', min_value=0, max_value=120, value=30)
     nivel_educativo = st.selectbox('Nivel Educativo:', [
-        'Sin instrucción',
-        'Primario incompleto',
-        'Primario completo',
-        'Secundario incompleto',
-        'Secundario completo',
-        'Superior universitario incompleto',
-        'Superior universitario completo'
+        'Sin instrucción', 'Primario incompleto', 'Primario completo',
+        'Secundario incompleto', 'Secundario completo',
+        'Superior universitario incompleto', 'Superior universitario completo'
     ])
     acceso_computadora = st.selectbox('¿Tiene acceso a computadora?', ['Sí', 'No'])
     acceso_internet = st.selectbox('¿Tiene acceso a internet?', ['Sí', 'No'])
@@ -30,8 +47,10 @@ if modo == 'Ingreso individual':
     provincia = st.text_input('Provincia (opcional):', '')
 
     if st.button('Calcular Índices'):
+        # Índice binario
         indice_binario = 1 if (acceso_computadora == 'No' and acceso_internet == 'No') else 0
 
+        # Índice ordinal
         if acceso_computadora == 'Sí' and acceso_internet == 'Sí':
             indice_ordinal = 2
         elif acceso_computadora == 'Sí' or acceso_internet == 'Sí':
@@ -39,8 +58,19 @@ if modo == 'Ingreso individual':
         else:
             indice_ordinal = 0
 
-        vulnerabilidad_digital = 100 if indice_binario == 1 else 50 if indice_ordinal == 1 else 0
+        # Vulnerabilidad digital (escalonado)
+        if acceso_computadora == 'No' and acceso_internet == 'No':
+            vulnerabilidad_digital = 100
+        elif acceso_computadora == 'No' or acceso_internet == 'No':
+            vulnerabilidad_digital = 80
+        else:
+            vulnerabilidad_digital = 0
 
+        if capacitacion_tic == 'No' and vulnerabilidad_digital < 100:
+            vulnerabilidad_digital += 20
+        vulnerabilidad_digital = min(vulnerabilidad_digital, 100)
+
+        # Vulnerabilidad movilidad
         vulnerabilidad_movilidad = 0
         if nivel_educativo in ['Sin instrucción', 'Primario incompleto', 'Primario completo']:
             vulnerabilidad_movilidad += 40
@@ -50,29 +80,40 @@ if modo == 'Ingreso individual':
             vulnerabilidad_movilidad += 30
         vulnerabilidad_movilidad = min(vulnerabilidad_movilidad, 100)
 
-        if edad <= 14:
-            grupo_etario = '0-14'
-        elif edad <= 24:
-            grupo_etario = '15-24'
-        elif edad <= 34:
-            grupo_etario = '25-34'
-        elif edad <= 44:
-            grupo_etario = '35-44'
-        elif edad <= 54:
-            grupo_etario = '45-54'
-        elif edad <= 64:
-            grupo_etario = '55-64'
-        else:
-            grupo_etario = '65+'
+        st.header("Resultados del Cálculo")
 
-        st.header('Resultados del Cálculo')
-        st.write(f'**Índice Binario de Exclusión Digital:** {indice_binario}')
-        st.write(f'**Índice Ordinal de Exclusión Digital:** {indice_ordinal}')
-        st.write(f'**Porcentaje de Vulnerabilidad Digital:** {vulnerabilidad_digital}%')
-        st.write(f'**Porcentaje de Vulnerabilidad de Movilidad Social:** {vulnerabilidad_movilidad}%')
-        st.write(f'**Clasificación Grupal (Edad):** {grupo_etario}')
-        st.write(f'**Región:** {region}')
-        st.write(f'**Provincia:** {provincia if provincia else "No especificada"}')
+        st.subheader("Índice Binario de Exclusión Digital")
+        st.markdown("""
+        Este índice identifica si una persona está completamente excluida digitalmente:
+        - **1:** Sin acceso a computadora ni internet en el hogar.
+        - **0:** Con acceso a al menos uno de los dos.
+        """)
+        st.write(f"**Resultado:** {indice_binario}")
+
+        st.subheader("Índice Ordinal de Exclusión Digital")
+        st.markdown("""
+        Mide el nivel de acceso digital:
+        - **0:** Sin acceso a computadora ni internet.
+        - **1:** Acceso parcial (solo computadora o solo internet).
+        - **2:** Acceso completo (ambos servicios).
+        """)
+        st.write(f"**Resultado:** {indice_ordinal}")
+
+        st.subheader("Porcentaje de Vulnerabilidad Digital")
+        st.markdown("""
+        Refleja el riesgo de exclusión digital en una escala de 0% a 100%.
+        Se incrementa si la persona no tiene capacitación en TIC.
+        """)
+        st.write(f"**Resultado:** {vulnerabilidad_digital}%")
+
+        st.subheader("Porcentaje de Vulnerabilidad de Movilidad Social")
+        st.markdown("""
+        Calcula el riesgo de dificultades para mejorar las condiciones de vida considerando:
+        - Nivel educativo.
+        - Capacitación en TIC.
+        - Exclusión digital.
+        """)
+        st.write(f"**Resultado:** {vulnerabilidad_movilidad}%")
 
 elif modo == 'Carga por lote (Excel)':
     st.header('Carga de Datos por Lote')
@@ -87,9 +128,30 @@ elif modo == 'Carga por lote (Excel)':
             educ = row['nivel_educativo']
             tic = row['capacitacion_tic']
 
+            # Índice binario
             binario = 1 if (compu == 'No' and internet == 'No') else 0
-            ordinal = 2 if (compu == 'Sí' and internet == 'Sí') else 1 if (compu == 'Sí' or internet == 'Sí') else 0
-            vuln_digital = 100 if binario == 1 else 50 if ordinal == 1 else 0
+
+            # Índice ordinal
+            if compu == 'Sí' and internet == 'Sí':
+                ordinal = 2
+            elif compu == 'Sí' or internet == 'Sí':
+                ordinal = 1
+            else:
+                ordinal = 0
+
+            # Vulnerabilidad digital (escalonado)
+            if compu == 'No' and internet == 'No':
+                vuln_digital = 100
+            elif compu == 'No' or internet == 'No':
+                vuln_digital = 80
+            else:
+                vuln_digital = 0
+
+            if tic == 'No' and vuln_digital < 100:
+                vuln_digital += 20
+            vuln_digital = min(vuln_digital, 100)
+
+            # Vulnerabilidad movilidad
             vuln_movilidad = 0
             if educ in ['Sin instrucción', 'Primario incompleto', 'Primario completo']:
                 vuln_movilidad += 40
@@ -98,6 +160,7 @@ elif modo == 'Carga por lote (Excel)':
             if binario == 1:
                 vuln_movilidad += 30
             vuln_movilidad = min(vuln_movilidad, 100)
+
             return pd.Series([binario, ordinal, vuln_digital, vuln_movilidad])
 
         df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
@@ -105,7 +168,6 @@ elif modo == 'Carga por lote (Excel)':
         st.success('Datos procesados correctamente')
         st.dataframe(df)
 
-        # Generar archivo Excel en memoria
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False)
@@ -114,7 +176,6 @@ elif modo == 'Carga por lote (Excel)':
         st.download_button(
             label='Descargar resultados en Excel',
             data=output,
-            file_name='datos_lote_ejemplo.xlsx',
+            file_name='datos_lote_resultados.xlsx',
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-
