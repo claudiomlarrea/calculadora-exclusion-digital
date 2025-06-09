@@ -68,7 +68,6 @@ if modo == 'Ingreso individual':
     st.write(f"**Porcentaje de Vulnerabilidad Digital:** {vulnerabilidad_digital:.1f}%")
     st.write(f"**Porcentaje de Vulnerabilidad de Movilidad Social:** {vulnerabilidad_movilidad:.1f}%")
 
-    # Extracto de explicaciones
     st.markdown("""
 ---
 ### 📌 Extracto de los índices calculados:
@@ -194,6 +193,11 @@ elif modo == 'Carga por lote (Excel)':
 
         df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
 
+        # Convertir columnas calculadas a numérico
+        cols_to_numeric = ['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']
+        for col in cols_to_numeric:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+
         st.success('Datos procesados correctamente')
         st.dataframe(df)
 
@@ -217,6 +221,7 @@ elif modo == 'Carga por lote (Excel)':
             file_name='resultados_lote.xlsx',
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
+
 
 
 
