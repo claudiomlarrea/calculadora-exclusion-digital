@@ -67,18 +67,15 @@ if modo == 'Ingreso individual':
     region = st.selectbox('Región:', ['Gran Buenos Aires', 'Noroeste', 'Noreste', 'Cuyo', 'Pampeana', 'Patagonia'])
     provincia = st.text_input('Provincia (opcional):', '')
 
-    # Cálculo de subíndices digitales
     sub_acceso_computadora = 1 if acceso_computadora == 'Sí' else 0
     sub_acceso_internet = 1 if acceso_internet == 'Sí' else 0
     sub_capacitacion_tic = 1 if capacitacion_tic == 'Sí' else 0
 
-    # Índices de exclusión digital
     sub_total_digital = sub_acceso_computadora + sub_acceso_internet + sub_capacitacion_tic
-    indice_ordinal = sub_total_digital  # de 0 a 3
+    indice_ordinal = sub_total_digital
     indice_binario = 1 if sub_total_digital == 0 else 0
     vulnerabilidad_digital = (3 - sub_total_digital) / 3 * 100
 
-    # Índice de vulnerabilidad de movilidad social
     vulnerabilidad_movilidad = 0
     if nivel_educativo in ['Sin instrucción', 'Primario incompleto']:
         vulnerabilidad_movilidad += 50
@@ -86,7 +83,6 @@ if modo == 'Ingreso individual':
         vulnerabilidad_movilidad += 50
     vulnerabilidad_movilidad = min(vulnerabilidad_movilidad, 100)
 
-    # Resultados
     st.header('Resultados')
     st.write(f"**Índice Binario de Exclusión Digital:** {indice_binario}")
     st.write(f"**Índice Ordinal de Exclusión Digital:** {indice_ordinal}")
@@ -108,7 +104,6 @@ if modo == 'Ingreso individual':
         'vulnerabilidad_movilidad': [vulnerabilidad_movilidad]
     })
 
-    # Descargar resultados individuales en Excel
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         resultados.to_excel(writer, index=False)
@@ -122,62 +117,84 @@ if modo == 'Ingreso individual':
     )
 
 # -----------------------------------------------
-# Modo de carga por lote
+# Modo de carga por lote (Excel)
 elif modo == 'Carga por lote (Excel)':
     st.header('Carga de Datos por Lote')
-    archivo = st.file_uploader('Subí un archivo Excel (.xlsx)', type='xlsx')
+    archivo_individuos = st.file_uploader('Subí la base de individuos (.xlsx)', type='xlsx', key='individuos')
+    archivo_hogares = st.file_uploader('Subí la base de hogares (.xlsx)', type='xlsx', key='hogares')
 
-    if archivo is not None:
-        df = pd.read_excel(archivo)
+    if archivo_individuos is not None and archivo_hogares is not None:
+        # Leer las bases con solo las columnas necesarias
+        columnas_individuos = ['CODUSU', 'NRO_HOGAR', 'CH04', 'CH06', 'NIVEL_ED']
+        columnas_hogares = ['CODUSU', 'NRO_HOGAR', 'REGION']
 
-        # Asegurarse de que las columnas estén en minúsculas y sin espacios
-        df.rename(columns=lambda x: x.strip().lower().replace(" ", "_"), inplace=True)
+        individuos = pd.read_excel(archivo_individuos, usecols=columnas_individuos)
+        hogares = pd.read_excel(archivo_hogares, usecols=columnas_hogares)
 
-        # Verificar la presencia de la columna 'nivel_educativo'
-        if 'nivel_educativo' not in df.columns:
-            st.error("La columna 'nivel_educativo' no se encuentra en el archivo. Por favor, verifica el nombre.")
-        else:
-            def calcular_indices(row):
-                sub_acceso_computadora = 1 if row['acceso_computadora'] == 'Sí' else 0
-                sub_acceso_internet = 1 if row['acceso_internet'] == 'Sí' else 0
-                sub_capacitacion_tic = 1 if row['capacitacion_tic'] == 'Sí' else 0
+        individuos.columns = individuos.columns.str.strip().str.lower()
+        hogares.columns = hogares.columns.str.strip().str.lower()
 
-                sub_total = sub_acceso_computadora + sub_acceso_internet + sub_capacitacion_tic
-                indice_ordinal = sub_total
-                indice_binario = 1 if sub_total == 0 else 0
-                vulnerabilidad_digital = (3 - sub_total) / 3 * 100
+        df_merged = pd.merge(individuos, hogares, on=['codusu', 'nro_hogar'], how='left')
 
-                vulnerabilidad_movilidad = 0
-                if row['nivel_educativo'] in ['Sin instrucción', 'Primario incompleto']:
-                    vulnerabilidad_movilidad += 50
-                if row['capacitacion_tic'] == 'No':
-                    vulnerabilidad_movilidad += 50
-                vulnerabilidad_movilidad = min(vulnerabilidad_movilidad, 100)
+        mapeo_nivel_ed = {
+            1: 'Sin instrucción',
+            2: 'Primario incompleto',
+            3: 'Primario completo',
+            4: 'Secundario incompleto',
+            5: 'Secundario completo',
+            6: 'Superior universitario incompleto',
+            7: 'Superior universitario completo',
+            8: 'Universitario incompleto',
+            9: 'Universitario completo'
+        }
+        df_merged['nivel_educativo'] = df_merged['nivel_ed'].map(mapeo_nivel_ed)
 
-                return pd.Series([
-                    indice_binario, indice_ordinal,
-                    vulnerabilidad_digital, vulnerabilidad_movilidad
-                ], index=[
-                    'indice_binario', 'indice_ordinal',
-                    'vulnerabilidad_digital', 'vulnerabilidad_movilidad'
-                ])
+        df_merged['acceso_computadora'] = None
+        df_merged['acceso_internet'] = None
+        df_merged['capacitacion_tic'] = None
 
-            df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
+        def calcular_indices(row):
+            sub_acceso_computadora = 1 if row['acceso_computadora'] == 'Sí' else 0
+            sub_acceso_internet = 1 if row['acceso_internet'] == 'Sí' else 0
+            sub_capacitacion_tic = 1 if row['capacitacion_tic'] == 'Sí' else 0
 
-            st.success('Datos procesados correctamente')
-            st.dataframe(df)
+            sub_total = sub_acceso_computadora + sub_acceso_internet + sub_capacitacion_tic
+            indice_ordinal = sub_total
+            indice_binario = 1 if sub_total == 0 else 0
+            vulnerabilidad_digital = (3 - sub_total) / 3 * 100
 
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                df.to_excel(writer, index=False)
-            output.seek(0)
+            vulnerabilidad_movilidad = 0
+            if row['nivel_educativo'] in ['Sin instrucción', 'Primario incompleto']:
+                vulnerabilidad_movilidad += 50
+            if row['capacitacion_tic'] == 'No':
+                vulnerabilidad_movilidad += 50
+            vulnerabilidad_movilidad = min(vulnerabilidad_movilidad, 100)
 
-            st.download_button(
-                label="Descargar resultados en Excel",
-                data=output,
-                file_name='resultados_lote.xlsx',
-                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
+            return pd.Series([
+                indice_binario, indice_ordinal,
+                vulnerabilidad_digital, vulnerabilidad_movilidad
+            ], index=[
+                'indice_binario', 'indice_ordinal',
+                'vulnerabilidad_digital', 'vulnerabilidad_movilidad'
+            ])
+
+        df_merged[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df_merged.apply(calcular_indices, axis=1)
+
+        st.success('Datos procesados correctamente')
+        st.dataframe(df_merged)
+
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df_merged.to_excel(writer, index=False)
+        output.seek(0)
+
+        st.download_button(
+            label="Descargar resultados en Excel",
+            data=output,
+            file_name='resultados_lote.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
 
 
 
