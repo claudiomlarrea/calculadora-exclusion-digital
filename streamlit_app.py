@@ -1,38 +1,29 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import io
 
 # -----------------------------------------------
-# Título institucional
+# Títulos
 st.markdown("<h1 style='text-align: center; color: white;'>Universidad Católica de Cuyo</h1>", unsafe_allow_html=True)
 st.markdown("<h3 style='text-align: center; color: white;'>Facultad de Ciencias Económicas y Empresariales</h3>", unsafe_allow_html=True)
 st.markdown("<h4 style='text-align: center; color: white;'>Instituto de Desarrollo Sostenible</h4>", unsafe_allow_html=True)
-
-# Título principal
 st.title("Calculadora de Exclusión Digital y Movilidad Social")
+st.subheader("Herramienta para el análisis de la brecha digital y oportunidades de desarrollo social.")
 
-# Subtítulo general
-st.subheader("Herramienta para el análisis de la brecha digital y su relación con las oportunidades de desarrollo social.")
-
-# Descripción general
+# Descripción
 st.markdown("""
-Esta aplicación permite estimar indicadores clave de exclusión digital y movilidad social a partir de los datos de cada persona o de archivos Excel con múltiples registros.
-
-**Los principales indicadores calculados son:**
-- **Índice Binario de Exclusión Digital**: identifica si una persona está completamente excluida digitalmente.
-- **Índice Ordinal de Exclusión Digital**: clasifica el nivel de acceso digital en tres categorías: sin acceso, acceso parcial y acceso completo.
-- **Porcentaje de Vulnerabilidad Digital**: mide la magnitud de la exclusión digital en una escala de 0 a 100%.
-- **Porcentaje de Vulnerabilidad de Movilidad Social**: estima el riesgo de que la persona tenga dificultades para mejorar sus condiciones de vida en función de su nivel educativo, capacitación TIC y exclusión digital.
+Esta aplicación permite estimar indicadores de exclusión digital y movilidad social a partir de datos individuales o archivos Excel.
 """, unsafe_allow_html=True)
 
 # -----------------------------------------------
-# Selector de modo de uso
+# Modo de uso
 modo = st.radio('Seleccioná el modo de uso:', ['Ingreso individual', 'Carga por lote (Excel)'])
 
 # -----------------------------------------------
-# Modo de ingreso individual
+# Modo Ingreso Individual
 if modo == 'Ingreso individual':
-    st.header('Ingreso de Datos por Persona')
+    st.header('Ingreso de Datos')
     
     sexo = st.selectbox('Sexo:', ['Varón', 'Mujer'])
     edad = st.number_input('Edad:', min_value=0, max_value=120, value=30)
@@ -47,19 +38,18 @@ if modo == 'Ingreso individual':
     region = st.selectbox('Región:', ['Gran Buenos Aires', 'Noroeste', 'Noreste', 'Cuyo', 'Pampeana', 'Patagonia'])
     provincia = st.text_input('Provincia (opcional):', '')
 
-    # Cálculo de indicadores
-    indice_binario = 1 if acceso_computadora == 'No' and acceso_internet == 'No' else 0
+    # -----------------------------------------------
+    # Cálculos
+    subindice_acceso_computadora = 0 if acceso_computadora == 'No' else 1
+    subindice_acceso_internet = 0 if acceso_internet == 'No' else 1
+    subindice_capacitacion_tic = 0 if capacitacion_tic == 'No' else 1
 
-    if acceso_computadora == 'No' and acceso_internet == 'No':
-        indice_ordinal = 0
-    elif acceso_computadora == 'Sí' and acceso_internet == 'Sí':
-        indice_ordinal = 2
-    else:
-        indice_ordinal = 1
+    subindice_total_digital = subindice_acceso_computadora + subindice_acceso_internet + subindice_capacitacion_tic
+    indice_ordinal = subindice_total_digital  # 0 a 3
+    vulnerabilidad_digital = (3 - subindice_total_digital) / 3 * 100
 
-    vulnerabilidad_digital = indice_ordinal * 50  # 0%, 50%, 100% según el índice ordinal
+    indice_binario = 1 if subindice_total_digital == 0 else 0
 
-    # Ejemplo de índice de movilidad social (simplificado)
     vulnerabilidad_movilidad = 0
     if nivel_educativo in ['Sin instrucción', 'Primario incompleto']:
         vulnerabilidad_movilidad += 50
@@ -68,13 +58,14 @@ if modo == 'Ingreso individual':
     if vulnerabilidad_movilidad > 100:
         vulnerabilidad_movilidad = 100
 
-    st.header('Resultados del Cálculo')
+    # -----------------------------------------------
+    # Mostrar resultados
+    st.header('Resultados')
     st.write(f"**Índice Binario de Exclusión Digital:** {indice_binario}")
     st.write(f"**Índice Ordinal de Exclusión Digital:** {indice_ordinal}")
-    st.write(f"**Porcentaje de Vulnerabilidad Digital:** {vulnerabilidad_digital}%")
+    st.write(f"**Porcentaje de Vulnerabilidad Digital:** {vulnerabilidad_digital:.1f}%")
     st.write(f"**Porcentaje de Vulnerabilidad de Movilidad Social:** {vulnerabilidad_movilidad}%")
 
-    # Crear DataFrame de resultados
     resultados = pd.DataFrame({
         'sexo': [sexo],
         'edad': [edad],
@@ -90,7 +81,6 @@ if modo == 'Ingreso individual':
         'vulnerabilidad_movilidad': [vulnerabilidad_movilidad]
     })
 
-    # Descargar resultados individuales en Excel
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         resultados.to_excel(writer, index=False)
@@ -104,30 +94,36 @@ if modo == 'Ingreso individual':
     )
 
 # -----------------------------------------------
-# Modo por lote
-elif modo == 'Carga por lote (Excel)':
+# Modo por Lote
+else:
     st.header('Carga de Datos por Lote')
     archivo = st.file_uploader('Subí un archivo Excel (.xlsx)', type='xlsx')
 
     if archivo is not None:
         df = pd.read_excel(archivo)
 
-        # Procesar cada fila
-        df['indice_binario'] = df.apply(lambda row: 1 if row['acceso_computadora'] == 'No' and row['acceso_internet'] == 'No' else 0, axis=1)
-        df['indice_ordinal'] = df.apply(lambda row: 0 if row['acceso_computadora'] == 'No' and row['acceso_internet'] == 'No'
-                                        else 2 if row['acceso_computadora'] == 'Sí' and row['acceso_internet'] == 'Sí'
-                                        else 1, axis=1)
-        df['vulnerabilidad_digital'] = df['indice_ordinal'] * 50
+        def calcular_indices(row):
+            sub_acceso_computadora = 0 if row['acceso_computadora'] == 'No' else 1
+            sub_acceso_internet = 0 if row['acceso_internet'] == 'No' else 1
+            sub_capacitacion_tic = 0 if row['capacitacion_tic'] == 'No' else 1
 
-        def calcular_movilidad(row):
-            vulnerabilidad = 0
+            sub_total = sub_acceso_computadora + sub_acceso_internet + sub_capacitacion_tic
+            indice_binario = 1 if sub_total == 0 else 0
+            indice_ordinal = sub_total
+            vulnerabilidad_digital = (3 - sub_total) / 3 * 100
+
+            vulnerabilidad_movilidad = 0
             if row['nivel_educativo'] in ['Sin instrucción', 'Primario incompleto']:
-                vulnerabilidad += 50
+                vulnerabilidad_movilidad += 50
             if row['capacitacion_tic'] == 'No':
-                vulnerabilidad += 50
-            return min(vulnerabilidad, 100)
+                vulnerabilidad_movilidad += 50
+            if vulnerabilidad_movilidad > 100:
+                vulnerabilidad_movilidad = 100
 
-        df['vulnerabilidad_movilidad'] = df.apply(calcular_movilidad, axis=1)
+            return pd.Series([indice_binario, indice_ordinal, vulnerabilidad_digital, vulnerabilidad_movilidad],
+                             index=['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad'])
+
+        df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
 
         st.success('Datos procesados correctamente')
         st.dataframe(df)
@@ -140,7 +136,8 @@ elif modo == 'Carga por lote (Excel)':
         st.download_button(
             label="Descargar resultados en Excel",
             data=output,
-            file_name='resultados.xlsx',
+            file_name='resultados_lote.xlsx',
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
+
 
