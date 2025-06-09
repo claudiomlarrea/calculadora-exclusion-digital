@@ -68,10 +68,11 @@ if modo == 'Ingreso individual':
     st.write(f"**Porcentaje de Vulnerabilidad Digital:** {vulnerabilidad_digital:.1f}%")
     st.write(f"**Porcentaje de Vulnerabilidad de Movilidad Social:** {vulnerabilidad_movilidad:.1f}%")
 
+    # Extracto de explicaciones
     st.markdown("""
 ---
 ### 📌 Extracto de los índices calculados:
-- **Índice Binario de Exclusión Digital**: 1 si la persona está completamente excluida digitalmente; 0 en caso contrario.
+- **Índice Binario de Exclusión Digital:** 1 si la persona está completamente excluida digitalmente; 0 en caso contrario.
 - **Índice Ordinal de Exclusión Digital (%):** Expresa el nivel de acceso digital en porcentaje (10%-100%).
 - **Porcentaje de Vulnerabilidad Digital (%):** Cuantifica la exclusión digital en escala de 10%-100%.
 - **Porcentaje de Vulnerabilidad de Movilidad Social (%):** Calcula el riesgo de movilidad social reducida (10%-100%).
@@ -115,7 +116,6 @@ elif modo == 'Carga por lote (Excel)':
 
     df = None
 
-    # Opción 1: Archivo único consolidado
     if archivo_unico:
         try:
             df = pd.read_excel(archivo_unico)
@@ -124,27 +124,23 @@ elif modo == 'Carga por lote (Excel)':
         except Exception as e:
             st.error(f"Error al leer el archivo consolidado: {e}")
 
-    # Opción 2: Archivos individuales + merge
     elif archivo_tic_individuos and archivo_tic_hogares:
-        columnas_individuos = ['CODUSU', 'NRO_HOGAR', 'COMPONENTE', 'CH04', 'CH06', 'NIVEL_ED', 
+        columnas_individuos = ['CODUSU', 'NRO_HOGAR', 'COMPONENTE', 'CH04', 'CH06', 'NIVEL_ED',
                                'IP_III_04', 'IP_III_05', 'IP_III_06']
         columnas_hogares = ['CODUSU', 'NRO_HOGAR', 'REGION']
 
         try:
             individuos = pd.read_excel(archivo_tic_individuos, usecols=columnas_individuos)
             hogares = pd.read_excel(archivo_tic_hogares, usecols=columnas_hogares)
+            individuos.columns = individuos.columns.str.strip().str.lower()
+            hogares.columns = hogares.columns.str.strip().str.lower()
+            df = pd.merge(individuos, hogares, on=['codusu', 'nro_hogar'], how='left')
+            st.success("Bases individuales y hogares unidas correctamente.")
         except Exception as e:
-            st.error(f"Error al leer las bases de individuos y hogares: {e}")
+            st.error(f"Error al procesar las bases: {e}")
 
-        individuos.columns = individuos.columns.str.strip().str.lower()
-        hogares.columns = hogares.columns.str.strip().str.lower()
-
-        df = pd.merge(individuos, hogares, on=['codusu', 'nro_hogar'], how='left')
-        st.success("Bases individuales y hogares unidas correctamente.")
-
-    # Procesamiento de la tabla final
     if df is not None:
-        # Mapear nivel educativo
+        # Mapeo de variables
         mapeo_nivel_ed = {
             1: 'Sin instrucción',
             2: 'Primario incompleto',
@@ -157,13 +153,10 @@ elif modo == 'Carga por lote (Excel)':
             9: 'Universitario completo'
         }
         df['nivel_educativo'] = df['nivel_ed'].map(mapeo_nivel_ed)
-
-        # Mapear variables TIC
         df['acceso_computadora'] = df['ip_iii_04'].map({1: 'Sí', 2: 'No'})
         df['acceso_internet'] = df['ip_iii_05'].map({1: 'Sí', 2: 'No'})
         df['capacitacion_tic'] = df['ip_iii_06'].map({1: 'Sí', 2: 'No'})
 
-        # Mapear REGIÓN
         mapeo_region = {
             1: 'Gran Buenos Aires',
             2: 'Pampeana',
@@ -207,7 +200,7 @@ elif modo == 'Carga por lote (Excel)':
         st.markdown("""
 ---
 ### 📌 Extracto de los índices calculados:
-- **Índice Binario de Exclusión Digital**: 1 si la persona está completamente excluida digitalmente; 0 en caso contrario.
+- **Índice Binario de Exclusión Digital:** 1 si la persona está completamente excluida digitalmente; 0 en caso contrario.
 - **Índice Ordinal de Exclusión Digital (%):** Expresa el nivel de acceso digital en porcentaje (10%-100%).
 - **Porcentaje de Vulnerabilidad Digital (%):** Cuantifica la exclusión digital en escala de 10%-100%.
 - **Porcentaje de Vulnerabilidad de Movilidad Social (%):** Calcula el riesgo de movilidad social reducida (10%-100%).
