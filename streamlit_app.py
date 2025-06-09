@@ -130,46 +130,54 @@ elif modo == 'Carga por lote (Excel)':
     if archivo is not None:
         df = pd.read_excel(archivo)
 
-        def calcular_indices(row):
-            sub_acceso_computadora = 1 if row['acceso_computadora'] == 'Sí' else 0
-            sub_acceso_internet = 1 if row['acceso_internet'] == 'Sí' else 0
-            sub_capacitacion_tic = 1 if row['capacitacion_tic'] == 'Sí' else 0
+        # Asegurarse de que las columnas estén en minúsculas y sin espacios
+        df.rename(columns=lambda x: x.strip().lower().replace(" ", "_"), inplace=True)
 
-            sub_total = sub_acceso_computadora + sub_acceso_internet + sub_capacitacion_tic
-            indice_ordinal = sub_total
-            indice_binario = 1 if sub_total == 0 else 0
-            vulnerabilidad_digital = (3 - sub_total) / 3 * 100
+        # Verificar la presencia de la columna 'nivel_educativo'
+        if 'nivel_educativo' not in df.columns:
+            st.error("La columna 'nivel_educativo' no se encuentra en el archivo. Por favor, verifica el nombre.")
+        else:
+            def calcular_indices(row):
+                sub_acceso_computadora = 1 if row['acceso_computadora'] == 'Sí' else 0
+                sub_acceso_internet = 1 if row['acceso_internet'] == 'Sí' else 0
+                sub_capacitacion_tic = 1 if row['capacitacion_tic'] == 'Sí' else 0
 
-            vulnerabilidad_movilidad = 0
-            if row['nivel_educativo'] in ['Sin instrucción', 'Primario incompleto']:
-                vulnerabilidad_movilidad += 50
-            if row['capacitacion_tic'] == 'No':
-                vulnerabilidad_movilidad += 50
-            vulnerabilidad_movilidad = min(vulnerabilidad_movilidad, 100)
+                sub_total = sub_acceso_computadora + sub_acceso_internet + sub_capacitacion_tic
+                indice_ordinal = sub_total
+                indice_binario = 1 if sub_total == 0 else 0
+                vulnerabilidad_digital = (3 - sub_total) / 3 * 100
 
-            return pd.Series([
-                indice_binario, indice_ordinal,
-                vulnerabilidad_digital, vulnerabilidad_movilidad
-            ], index=[
-                'indice_binario', 'indice_ordinal',
-                'vulnerabilidad_digital', 'vulnerabilidad_movilidad'
-            ])
+                vulnerabilidad_movilidad = 0
+                if row['nivel_educativo'] in ['Sin instrucción', 'Primario incompleto']:
+                    vulnerabilidad_movilidad += 50
+                if row['capacitacion_tic'] == 'No':
+                    vulnerabilidad_movilidad += 50
+                vulnerabilidad_movilidad = min(vulnerabilidad_movilidad, 100)
 
-        df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
+                return pd.Series([
+                    indice_binario, indice_ordinal,
+                    vulnerabilidad_digital, vulnerabilidad_movilidad
+                ], index=[
+                    'indice_binario', 'indice_ordinal',
+                    'vulnerabilidad_digital', 'vulnerabilidad_movilidad'
+                ])
 
-        st.success('Datos procesados correctamente')
-        st.dataframe(df)
+            df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
 
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False)
-        output.seek(0)
+            st.success('Datos procesados correctamente')
+            st.dataframe(df)
 
-        st.download_button(
-            label="Descargar resultados en Excel",
-            data=output,
-            file_name='resultados_lote.xlsx',
-            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df.to_excel(writer, index=False)
+            output.seek(0)
+
+            st.download_button(
+                label="Descargar resultados en Excel",
+                data=output,
+                file_name='resultados_lote.xlsx',
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+
 
 
