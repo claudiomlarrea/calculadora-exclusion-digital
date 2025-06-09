@@ -119,21 +119,21 @@ elif modo == 'Carga por lote (Excel)':
 
             st.success("Archivo consolidado cargado correctamente.")
 
-            # Mapear nivel educativo
-            mapeo_nivel_ed = {
-                1: 'Sin instrucción',
-                2: 'Primario incompleto',
-                3: 'Primario completo',
-                4: 'Secundario incompleto',
-                5: 'Secundario completo',
-                6: 'Superior universitario incompleto',
-                7: 'Superior universitario completo',
-                8: 'Universitario incompleto',
-                9: 'Universitario completo'
-            }
-
-            if 'nivel_ed' in df.columns:
-                df['nivel_educativo'] = df['nivel_ed'].map(mapeo_nivel_ed)
+            # Intentar encontrar la columna de nivel educativo (con flexibilidad)
+            nivel_ed_col = next((col for col in df.columns if 'nivel_ed' in col), None)
+            if nivel_ed_col:
+                mapeo_nivel_ed = {
+                    1: 'Sin instrucción',
+                    2: 'Primario incompleto',
+                    3: 'Primario completo',
+                    4: 'Secundario incompleto',
+                    5: 'Secundario completo',
+                    6: 'Superior universitario incompleto',
+                    7: 'Superior universitario completo',
+                    8: 'Universitario incompleto',
+                    9: 'Universitario completo'
+                }
+                df['nivel_educativo'] = df[nivel_ed_col].map(mapeo_nivel_ed)
             else:
                 st.warning("La columna 'nivel_ed' no se encuentra en el archivo.")
 
@@ -214,7 +214,6 @@ elif modo == 'Carga por lote (Excel)':
 
         except Exception as e:
             st.error(f"Error al procesar el archivo: {e}")
-
 
 
 
