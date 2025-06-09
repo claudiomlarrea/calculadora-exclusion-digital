@@ -68,6 +68,15 @@ if modo == 'Ingreso individual':
     st.write(f"**Porcentaje de Vulnerabilidad Digital:** {vulnerabilidad_digital:.1f}%")
     st.write(f"**Porcentaje de Vulnerabilidad de Movilidad Social:** {vulnerabilidad_movilidad:.1f}%")
 
+    st.markdown("""
+---
+### 📌 Extracto de los índices calculados:
+- **Índice Binario de Exclusión Digital**: 1 si la persona está completamente excluida digitalmente; 0 en caso contrario.
+- **Índice Ordinal de Exclusión Digital (%):** Expresa el nivel de acceso digital en porcentaje (10%-100%).
+- **Porcentaje de Vulnerabilidad Digital (%):** Cuantifica la exclusión digital en escala de 10%-100%.
+- **Porcentaje de Vulnerabilidad de Movilidad Social (%):** Calcula el riesgo de movilidad social reducida (10%-100%).
+""")
+
     resultados = pd.DataFrame({
         'sexo': [sexo],
         'edad': [edad],
@@ -117,7 +126,7 @@ elif modo == 'Carga por lote (Excel)':
 
     # Opción 2: Archivos individuales + merge
     elif archivo_tic_individuos and archivo_tic_hogares:
-        columnas_individuos = ['CODUSU', 'NRO_HOGAR', 'CH04', 'CH06', 'NIVEL_ED', 
+        columnas_individuos = ['CODUSU', 'NRO_HOGAR', 'COMPONENTE', 'CH04', 'CH06', 'NIVEL_ED', 
                                'IP_III_04', 'IP_III_05', 'IP_III_06']
         columnas_hogares = ['CODUSU', 'NRO_HOGAR', 'REGION']
 
@@ -194,6 +203,15 @@ elif modo == 'Carga por lote (Excel)':
 
         st.success('Datos procesados correctamente')
         st.dataframe(df)
+
+        st.markdown("""
+---
+### 📌 Extracto de los índices calculados:
+- **Índice Binario de Exclusión Digital**: 1 si la persona está completamente excluida digitalmente; 0 en caso contrario.
+- **Índice Ordinal de Exclusión Digital (%):** Expresa el nivel de acceso digital en porcentaje (10%-100%).
+- **Porcentaje de Vulnerabilidad Digital (%):** Cuantifica la exclusión digital en escala de 10%-100%.
+- **Porcentaje de Vulnerabilidad de Movilidad Social (%):** Calcula el riesgo de movilidad social reducida (10%-100%).
+""")
 
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
