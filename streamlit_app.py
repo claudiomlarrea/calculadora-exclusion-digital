@@ -99,15 +99,43 @@ if modo == 'Ingreso individual':
 # Modo de carga por lote (Excel)
 elif modo == 'Carga por lote (Excel)':
     st.header('Carga de Datos por Lote')
-    archivo_tic_individuos = st.file_uploader('Subí la base TIC de individuos (.xlsx)', type='xlsx')
 
-    if archivo_tic_individuos:
-        columnas_tic = ['CODUSU', 'NRO_HOGAR', 'CH04', 'CH06', 'NIVEL_ED', 
-                        'IP_III_04', 'IP_III_05', 'IP_III_06', 'REGION']
+    archivo_unico = st.file_uploader('Subí el archivo consolidado (.xlsx) o bien las dos bases por separado', type='xlsx', key='archivo_unico')
+    archivo_tic_individuos = st.file_uploader('Subí la base TIC de individuos (.xlsx)', type='xlsx', key='archivo_individuos')
+    archivo_tic_hogares = st.file_uploader('Subí la base TIC de hogares (.xlsx)', type='xlsx', key='archivo_hogares')
 
-        tic_individuos = pd.read_excel(archivo_tic_individuos, usecols=columnas_tic)
-        tic_individuos.columns = tic_individuos.columns.str.strip().str.lower()
+    df = None
 
+    # Opción 1: Archivo único consolidado
+    if archivo_unico:
+        try:
+            df = pd.read_excel(archivo_unico)
+            df.columns = df.columns.str.strip().str.lower()
+            st.success("Archivo consolidado cargado correctamente.")
+        except Exception as e:
+            st.error(f"Error al leer el archivo consolidado: {e}")
+
+    # Opción 2: Archivos individuales + merge
+    elif archivo_tic_individuos and archivo_tic_hogares:
+        columnas_individuos = ['CODUSU', 'NRO_HOGAR', 'CH04', 'CH06', 'NIVEL_ED', 
+                               'IP_III_04', 'IP_III_05', 'IP_III_06']
+        columnas_hogares = ['CODUSU', 'NRO_HOGAR', 'REGION']
+
+        try:
+            individuos = pd.read_excel(archivo_tic_individuos, usecols=columnas_individuos)
+            hogares = pd.read_excel(archivo_tic_hogares, usecols=columnas_hogares)
+        except Exception as e:
+            st.error(f"Error al leer las bases de individuos y hogares: {e}")
+
+        individuos.columns = individuos.columns.str.strip().str.lower()
+        hogares.columns = hogares.columns.str.strip().str.lower()
+
+        df = pd.merge(individuos, hogares, on=['codusu', 'nro_hogar'], how='left')
+        st.success("Bases individuales y hogares unidas correctamente.")
+
+    # Procesamiento de la tabla final
+    if df is not None:
+        # Mapear nivel educativo
         mapeo_nivel_ed = {
             1: 'Sin instrucción',
             2: 'Primario incompleto',
@@ -119,12 +147,12 @@ elif modo == 'Carga por lote (Excel)':
             8: 'Universitario incompleto',
             9: 'Universitario completo'
         }
-        tic_individuos['nivel_educativo'] = tic_individuos['nivel_ed'].map(mapeo_nivel_ed)
+        df['nivel_educativo'] = df['nivel_ed'].map(mapeo_nivel_ed)
 
         # Mapear variables TIC
-        tic_individuos['acceso_computadora'] = tic_individuos['ip_iii_04'].map({1: 'Sí', 2: 'No'})
-        tic_individuos['acceso_internet'] = tic_individuos['ip_iii_05'].map({1: 'Sí', 2: 'No'})
-        tic_individuos['capacitacion_tic'] = tic_individuos['ip_iii_06'].map({1: 'Sí', 2: 'No'})
+        df['acceso_computadora'] = df['ip_iii_04'].map({1: 'Sí', 2: 'No'})
+        df['acceso_internet'] = df['ip_iii_05'].map({1: 'Sí', 2: 'No'})
+        df['capacitacion_tic'] = df['ip_iii_06'].map({1: 'Sí', 2: 'No'})
 
         # Mapear REGIÓN
         mapeo_region = {
@@ -135,7 +163,7 @@ elif modo == 'Carga por lote (Excel)':
             5: 'Cuyo',
             6: 'Patagonia'
         }
-        tic_individuos['region'] = tic_individuos['region'].map(mapeo_region)
+        df['region'] = df['region'].map(mapeo_region)
 
         def calcular_indices(row):
             sub_acceso_computadora = 1 if row['acceso_computadora'] == 'Sí' else 0
@@ -162,20 +190,20 @@ elif modo == 'Carga por lote (Excel)':
                 'vulnerabilidad_digital', 'vulnerabilidad_movilidad'
             ])
 
-        tic_individuos[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = tic_individuos.apply(calcular_indices, axis=1)
+        df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
 
         st.success('Datos procesados correctamente')
-        st.dataframe(tic_individuos)
+        st.dataframe(df)
 
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            tic_individuos.to_excel(writer, index=False)
+            df.to_excel(writer, index=False)
         output.seek(0)
 
         st.download_button(
             label="Descargar resultados en Excel",
             data=output,
-            file_name='resultados_tic_lote.xlsx',
+            file_name='resultados_lote.xlsx',
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
 
