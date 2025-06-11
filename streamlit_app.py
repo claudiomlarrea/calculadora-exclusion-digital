@@ -129,7 +129,7 @@ elif modo == 'Carga por lote (Excel)':
             if 'ip_iii_06' in df.columns:
                 df['capacitacion_tic'] = df['ip_iii_06'].map({1: 'Sí', 2: 'No'})
 
-            # Intentar encontrar la columna nivel_ed
+            # Mapeo de nivel educativo
             nivel_ed_col = next((col for col in df.columns if 'nivel_ed' in col.lower()), None)
             if nivel_ed_col:
                 mapeo_nivel_ed = {
@@ -142,8 +142,6 @@ elif modo == 'Carga por lote (Excel)':
                     7: 'Superior universitario completo'
                 }
                 df['nivel_educativo'] = df[nivel_ed_col].map(mapeo_nivel_ed)
-            else:
-                st.warning("La columna 'nivel_ed' no se encuentra. Se calcularán solo los índices digitales.")
 
             def calcular_indices(row):
                 sub_acceso_computadora = 1 if row.get('acceso_computadora') == 'Sí' else 0
@@ -155,9 +153,8 @@ elif modo == 'Carga por lote (Excel)':
                 indice_binario = 1 if sub_total == 0 else 0
                 vulnerabilidad_digital = ((3 - sub_total) / 3 * 90) + 10
 
-                # Calcular vulnerabilidad de movilidad social solo si existe nivel_educativo
-                vulnerabilidad_movilidad = np.nan
-                if 'nivel_educativo' in row:
+                vulnerabilidad_movilidad = np.nan  # Por defecto si falta nivel educativo
+                if 'nivel_educativo' in row and pd.notnull(row['nivel_educativo']):
                     puntaje_nivel_ed = 0
                     if row['nivel_educativo'] == 'Sin instrucción':
                         puntaje_nivel_ed = 7
@@ -188,6 +185,9 @@ elif modo == 'Carga por lote (Excel)':
                 ])
 
             df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
+
+            # Rellenar NaN con 0 si se desea
+            # df['vulnerabilidad_movilidad'] = df['vulnerabilidad_movilidad'].fillna(0)
 
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
