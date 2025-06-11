@@ -71,7 +71,7 @@ if modo == 'Ingreso individual':
     elif nivel_educativo == 'Superior universitario completo':
         puntaje_nivel_ed = 1
 
-    vulnerabilidad_educativa = (puntaje_nivel_ed / 7) * 50  # 0 a 50%
+    vulnerabilidad_educativa = (puntaje_nivel_ed / 7) * 50
     vulnerabilidad_tic = 50 if capacitacion_tic == 'No' else 0
 
     vulnerabilidad_movilidad = vulnerabilidad_educativa + vulnerabilidad_tic
@@ -122,63 +122,71 @@ elif modo == 'Carga por lote (Excel)':
             df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
 
             # Mapeo de variables TIC
-            df['acceso_computadora'] = df['ip_iii_04'].map({1: 'Sí', 2: 'No'})
-            df['acceso_internet'] = df['ip_iii_05'].map({1: 'Sí', 2: 'No'})
-            df['capacitacion_tic'] = df['ip_iii_06'].map({1: 'Sí', 2: 'No'})
+            if 'ip_iii_04' in df.columns:
+                df['acceso_computadora'] = df['ip_iii_04'].map({1: 'Sí', 2: 'No'})
+            if 'ip_iii_05' in df.columns:
+                df['acceso_internet'] = df['ip_iii_05'].map({1: 'Sí', 2: 'No'})
+            if 'ip_iii_06' in df.columns:
+                df['capacitacion_tic'] = df['ip_iii_06'].map({1: 'Sí', 2: 'No'})
 
-            # Mapeo de nivel educativo
-            mapeo_nivel_ed = {
-                1: 'Sin instrucción',
-                2: 'Primario incompleto',
-                3: 'Primario completo',
-                4: 'Secundario incompleto',
-                5: 'Secundario completo',
-                6: 'Superior universitario incompleto',
-                7: 'Superior universitario completo'
-            }
-            df['nivel_educativo'] = df['nivel_ed'].map(mapeo_nivel_ed)
+            # Verificar columna de nivel educativo
+            nivel_ed_col = next((col for col in df.columns if 'nivel_ed' in col.lower()), None)
+            if nivel_ed_col:
+                mapeo_nivel_ed = {
+                    1: 'Sin instrucción',
+                    2: 'Primario incompleto',
+                    3: 'Primario completo',
+                    4: 'Secundario incompleto',
+                    5: 'Secundario completo',
+                    6: 'Superior universitario incompleto',
+                    7: 'Superior universitario completo'
+                }
+                df['nivel_educativo'] = df[nivel_ed_col].map(mapeo_nivel_ed)
 
-            def calcular_indices(row):
-                sub_acceso_computadora = 1 if row['acceso_computadora'] == 'Sí' else 0
-                sub_acceso_internet = 1 if row['acceso_internet'] == 'Sí' else 0
-                sub_capacitacion_tic = 1 if row['capacitacion_tic'] == 'Sí' else 0
-                sub_total = sub_acceso_computadora + sub_acceso_internet + sub_capacitacion_tic
+                def calcular_indices(row):
+                    sub_acceso_computadora = 1 if row.get('acceso_computadora') == 'Sí' else 0
+                    sub_acceso_internet = 1 if row.get('acceso_internet') == 'Sí' else 0
+                    sub_capacitacion_tic = 1 if row.get('capacitacion_tic') == 'Sí' else 0
+                    sub_total = sub_acceso_computadora + sub_acceso_internet + sub_capacitacion_tic
 
-                indice_ordinal = ((sub_total) / 3 * 90) + 10
-                indice_binario = 1 if sub_total == 0 else 0
-                vulnerabilidad_digital = ((3 - sub_total) / 3 * 90) + 10
+                    indice_ordinal = ((sub_total) / 3 * 90) + 10
+                    indice_binario = 1 if sub_total == 0 else 0
+                    vulnerabilidad_digital = ((3 - sub_total) / 3 * 90) + 10
 
-                puntaje_nivel_ed = 0
-                if row['nivel_educativo'] == 'Sin instrucción':
-                    puntaje_nivel_ed = 7
-                elif row['nivel_educativo'] == 'Primario incompleto':
-                    puntaje_nivel_ed = 6
-                elif row['nivel_educativo'] == 'Primario completo':
-                    puntaje_nivel_ed = 5
-                elif row['nivel_educativo'] == 'Secundario incompleto':
-                    puntaje_nivel_ed = 4
-                elif row['nivel_educativo'] == 'Secundario completo':
-                    puntaje_nivel_ed = 3
-                elif row['nivel_educativo'] == 'Superior universitario incompleto':
-                    puntaje_nivel_ed = 2
-                elif row['nivel_educativo'] == 'Superior universitario completo':
-                    puntaje_nivel_ed = 1
+                    puntaje_nivel_ed = 0
+                    if row['nivel_educativo'] == 'Sin instrucción':
+                        puntaje_nivel_ed = 7
+                    elif row['nivel_educativo'] == 'Primario incompleto':
+                        puntaje_nivel_ed = 6
+                    elif row['nivel_educativo'] == 'Primario completo':
+                        puntaje_nivel_ed = 5
+                    elif row['nivel_educativo'] == 'Secundario incompleto':
+                        puntaje_nivel_ed = 4
+                    elif row['nivel_educativo'] == 'Secundario completo':
+                        puntaje_nivel_ed = 3
+                    elif row['nivel_educativo'] == 'Superior universitario incompleto':
+                        puntaje_nivel_ed = 2
+                    elif row['nivel_educativo'] == 'Superior universitario completo':
+                        puntaje_nivel_ed = 1
 
-                vulnerabilidad_educativa = (puntaje_nivel_ed / 7) * 50
-                vulnerabilidad_tic = 50 if row['capacitacion_tic'] == 'No' else 0
+                    vulnerabilidad_educativa = (puntaje_nivel_ed / 7) * 50
+                    vulnerabilidad_tic = 50 if row.get('capacitacion_tic') == 'No' else 0
 
-                vulnerabilidad_movilidad = vulnerabilidad_educativa + vulnerabilidad_tic
-                vulnerabilidad_movilidad = min(vulnerabilidad_movilidad, 100)
+                    vulnerabilidad_movilidad = vulnerabilidad_educativa + vulnerabilidad_tic
+                    vulnerabilidad_movilidad = min(vulnerabilidad_movilidad, 100)
 
-                return pd.Series([
-                    indice_binario, indice_ordinal,
-                    vulnerabilidad_digital, vulnerabilidad_movilidad
-                ], index=[
-                    'indice_binario', 'indice_ordinal',
-                    'vulnerabilidad_digital', 'vulnerabilidad_movilidad'
-                ])
+                    return pd.Series([
+                        indice_binario, indice_ordinal,
+                        vulnerabilidad_digital, vulnerabilidad_movilidad
+                    ], index=[
+                        'indice_binario', 'indice_ordinal',
+                        'vulnerabilidad_digital', 'vulnerabilidad_movilidad'
+                    ])
 
-            df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
+                df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
+            else:
+                st.warning("La columna 'nivel_ed' no se encuentra en el archivo. No se generaron índices.")
+                st.stop()
 
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
