@@ -129,7 +129,7 @@ elif modo == 'Carga por lote (Excel)':
             if 'ip_iii_06' in df.columns:
                 df['capacitacion_tic'] = df['ip_iii_06'].map({1: 'Sí', 2: 'No'})
 
-            # Verificar columna de nivel educativo
+            # Intentar encontrar la columna nivel_ed
             nivel_ed_col = next((col for col in df.columns if 'nivel_ed' in col.lower()), None)
             if nivel_ed_col:
                 mapeo_nivel_ed = {
@@ -142,17 +142,22 @@ elif modo == 'Carga por lote (Excel)':
                     7: 'Superior universitario completo'
                 }
                 df['nivel_educativo'] = df[nivel_ed_col].map(mapeo_nivel_ed)
+            else:
+                st.warning("La columna 'nivel_ed' no se encuentra. Se calcularán solo los índices digitales.")
 
-                def calcular_indices(row):
-                    sub_acceso_computadora = 1 if row.get('acceso_computadora') == 'Sí' else 0
-                    sub_acceso_internet = 1 if row.get('acceso_internet') == 'Sí' else 0
-                    sub_capacitacion_tic = 1 if row.get('capacitacion_tic') == 'Sí' else 0
-                    sub_total = sub_acceso_computadora + sub_acceso_internet + sub_capacitacion_tic
+            def calcular_indices(row):
+                sub_acceso_computadora = 1 if row.get('acceso_computadora') == 'Sí' else 0
+                sub_acceso_internet = 1 if row.get('acceso_internet') == 'Sí' else 0
+                sub_capacitacion_tic = 1 if row.get('capacitacion_tic') == 'Sí' else 0
+                sub_total = sub_acceso_computadora + sub_acceso_internet + sub_capacitacion_tic
 
-                    indice_ordinal = ((sub_total) / 3 * 90) + 10
-                    indice_binario = 1 if sub_total == 0 else 0
-                    vulnerabilidad_digital = ((3 - sub_total) / 3 * 90) + 10
+                indice_ordinal = ((sub_total) / 3 * 90) + 10
+                indice_binario = 1 if sub_total == 0 else 0
+                vulnerabilidad_digital = ((3 - sub_total) / 3 * 90) + 10
 
+                # Calcular vulnerabilidad de movilidad social solo si existe nivel_educativo
+                vulnerabilidad_movilidad = np.nan
+                if 'nivel_educativo' in row:
                     puntaje_nivel_ed = 0
                     if row['nivel_educativo'] == 'Sin instrucción':
                         puntaje_nivel_ed = 7
@@ -171,22 +176,18 @@ elif modo == 'Carga por lote (Excel)':
 
                     vulnerabilidad_educativa = (puntaje_nivel_ed / 7) * 50
                     vulnerabilidad_tic = 50 if row.get('capacitacion_tic') == 'No' else 0
-
                     vulnerabilidad_movilidad = vulnerabilidad_educativa + vulnerabilidad_tic
                     vulnerabilidad_movilidad = min(vulnerabilidad_movilidad, 100)
 
-                    return pd.Series([
-                        indice_binario, indice_ordinal,
-                        vulnerabilidad_digital, vulnerabilidad_movilidad
-                    ], index=[
-                        'indice_binario', 'indice_ordinal',
-                        'vulnerabilidad_digital', 'vulnerabilidad_movilidad'
-                    ])
+                return pd.Series([
+                    indice_binario, indice_ordinal,
+                    vulnerabilidad_digital, vulnerabilidad_movilidad
+                ], index=[
+                    'indice_binario', 'indice_ordinal',
+                    'vulnerabilidad_digital', 'vulnerabilidad_movilidad'
+                ])
 
-                df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
-            else:
-                st.warning("La columna 'nivel_ed' no se encuentra en el archivo. No se generaron índices.")
-                st.stop()
+            df[['indice_binario', 'indice_ordinal', 'vulnerabilidad_digital', 'vulnerabilidad_movilidad']] = df.apply(calcular_indices, axis=1)
 
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
